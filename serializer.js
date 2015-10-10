@@ -2,6 +2,16 @@ import DS from 'ember-data';
 import camelizeEach from 'lib/camelize-each';
 
 export default DS.JSONSerializer.extend({
+  extractMeta: function(store, primaryModelClass, payload) {
+    // Note: the meta data must be an object.
+    var metaCache = {};
+    for (var prop in payload) {
+      if (prop !== 'hits') {
+        metaCache[prop] = payload[prop];
+      }
+    }
+    return payload.meta = metaCache;
+  },
   extractArray: function(store, type, payload) {
     var payloadCache = [];
     payload.hits.forEach(function(hit) {
@@ -19,15 +29,5 @@ export default DS.JSONSerializer.extend({
       delete obj.objectID;
     });
     return payload;
-  },
-  extractMeta: function(store, primaryModelClass, payload) {
-    // Note: the meta data must be an object.
-    var metaCache = {};
-    for (var prop in payload) {
-      if (prop !== 'hits') {
-        metaCache[prop] = payload[prop];
-      }
-    }
-    return payload.meta = metaCache;
   },
 });
