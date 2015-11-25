@@ -1,5 +1,5 @@
 import DS from 'ember-data';
-import camelizeEach from 'frontend-hq/utils/camelize-each';
+import camelizeEach from 'lib/camelize-each';
 
 export default DS.RESTSerializer.extend({
   normalizeResponse: function(modelName, payload) {
