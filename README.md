@@ -9,7 +9,7 @@ This small library demonstrates one way to splice Ember and Algolia based on my 
 ## Usage example 
 
 ```
-export default Ember.Route.extend(PaginationRouteMixin, LiveSearchable, {
+export default Ember.Route.extend({
   model: function(params) {
     var {
       q,
