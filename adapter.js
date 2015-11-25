@@ -7,58 +7,142 @@ var algoliaClient = algoliasearch(
 );
 
 export default DS.RESTAdapter.extend({
-  /**
-    Builds index name assuming the convention of "ModelName_Environment".
+  defaultSerializer: 'algolia',
+  defaultParams: {
+    facets: '*',
+    attributesToRetrieve: '*',
+  },
+  queryParams: null,
+  queryParamsWithFilters: null,
 
-    @method algoliaBuildIndexName
-    @param  {String} model
-    @return {String} string
-  */
-  algoliaBuildIndexName: function(modelName) {
-    return model.capitalize() + '_' + config.environment;
+  query: function(modelName, options) {
+    var self = this;
+    var {
+      query,
+      page,
+      facetFilters,
+      visibility,
+    } = options;
+
+    var facetFiltersFormatted = this._facetFormatter(facetFilters);
+
+    this.setProperties({
+      modelName: modelName,
+      queryParams: {
+        page: page,
+      },
+      queryParamsWithFilters: {
+        page: page,
+        facetFilters: facetFiltersFormatted,
+      },
+    });
+
+    var indexName = this.algoliaBuildIndexName(modelName, visibility);
+    var facetsParams = Ember.$.extend(this.get('queryParams'), this.get('defaultParams'));
+    var resultsParams = Ember.$.extend(this.get('queryParamsWithFilters'), this.get('defaultParams'));
+
+    query = query || '';
+
+    var promises = {
+      facets: algoliaClient.initIndex(indexName).search(query, facetsParams),
+      results: algoliaClient.initIndex(indexName).search(query, resultsParams)
+    };
+
+    return Ember.RSVP.hash(promises).then(function(hash) {
+      self.store.unloadAll(modelName);
+      var model = self._handleResultsResponse(hash.results);
+      var facets = self._handleFacetsResponse(hash.facets, hash.results);
+      model.facets = facets;
+      return model;
+    }.bind(self));
   },
 
-  /**
-    Wraps Algolia API call.
-
-    @method algoliaFind
-    @param  {String} modelName
-    @param  {Object} searchParams
-    @return {Promise} promise
-  */
-  algoliaFindQuery: function(modelName, searchParams) {
-    var indexName;
-    var { query, params } = searchParams;
-    indexName = this.algoliaBuildIndexName(modelName);
-    return algoliaClient.initIndex(indexName).search(query, params);
+  _algoliaBuildIndexName: function(model, visibility) {
+    if (!!modelAliases[model]) {
+      model = modelAliases[model];
+    }
+    if (visibility) {
+      return model.camelize().capitalize() + '_' + visibility.capitalize() + '_' + config.environment;
+    } else {
+      return model.camelize().capitalize() + '_' + config.environment;
+    }
   },
 
-  /**
-    Called by the store in order to fetch a JSON array for the records that match a particular
-    query. This override of the `findQuery` method makes an Ajax (HTTP GET) request
-    to Algolia.
+  _handleResultsResponse: function(resultsPayload) {
+    var self = this;
+    var meta;
+    var normalizedPayload;
+    var modelRecordArray;
+    var modelName = this.get('modelName');
+    var serializer = this.store.serializerFor('algolia');
 
-    Your searchParams hash should be formatted like:
-    ```
-      searchParams = {
-        query: 'why no Yehudster',
-        params: {
-          page: 1,
-          facets: '*',
-          hitsPerPage: 20,
-          getRankingInfo: 1,
-          maxValuesPerFacet: 10
-        }
-      }
-    ```
+    // Serialize the raw JSON payload.
+    normalizedPayload = serializer.normalizeResponse(modelName, resultsPayload);
+    meta = this.store.serializerFor('algolia').extractMeta(modelName, resultsPayload);
 
-    @method findQuery
-    @param {DS.Store} store
-    @param {DS.Model} type
-    @param {Object} searchParams
-    @return {Promise} promise
-  */
-  findQuery: function(store, type, searchParams) {
-    return this.algoliaFindQuery(type.modelName, searchParams);
+    // Note(ross): Tried to push the whole hash with `pushPayload` but certain this behaved flaky:
+    // certain record attributes would be dropped.
+    normalizedPayload[modelName].forEach(function(record) {
+      self.store.push(modelName, record);
+    });
+
+    // Build model object.
+    modelRecordArray = this.store.peekAll(modelName);
+    modelRecordArray.set('meta', meta);
+    return modelRecordArray;
+  },
+
+  // Pushes facets and filters onto the global store and returns facets; if we ever need filters
+  // we can reach them through facets.
+  _handleFacetsResponse: function(facetsPayload) {
+    var self = this;
+    var modelName = this.get('modelName');
+    var extractedFacets = this.store.serializerFor('algolia').extractFacets(modelName, facetsPayload);
+
+    this.store.unloadAll('facet');
+    this.store.unloadAll('filter');
+
+    extractedFacets.facetData.forEach(function(record) {
+      self.store.push('facet', record);
+    });
+
+    extractedFacets.filterData.forEach(function(record) {
+      self.store.push('filter', record);
+    });
+
+    return this.store.peekAll('facet');
+  },
+
+  // Transforms a flat array and returns properly nested arrays that configure OR and AND filtering.
+  _facetFormatter: function(facetFiltersArr) {
+    if (!facetFiltersArr) { return; }
+    var masterArr = [];
+
+    // ```
+    // ['status:Accepted', 'user_name:Dennis Rodman'] >>
+    // ['status', 'user_name']
+    // ```
+    var facetNames = facetFiltersArr.map(function(facet) {
+      if (typeof facet !== 'string') { return; }
+      return facet.split(':')[0];
+    });
+
+    // Dedupe array of facetNames.
+    facetNames.uniq();
+
+    // Loop over each facet and build an array of OR filters across a single facet and AND filters
+    // across multiple facets in the format that Algolia understands.  EG:
+    // ```
+    // [["status:Declined","status:Closed"],["user_name:Dennis Rodman"]]
+    // ```
+    facetNames.forEach(function(facetName, index){
+      var facetArr = 'arr_' + index;
+      facetArr = facetFiltersArr.filter(function(filter) {
+        return filter.indexOf(facetName) !== -1;
+      });
+      masterArr.push(facetArr);
+    });
+
+    return masterArr;
   },
 });
