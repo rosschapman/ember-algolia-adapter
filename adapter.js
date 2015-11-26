@@ -26,18 +26,18 @@ export default DS.RESTAdapter.extend({
 
     var facetFiltersFormatted = this._facetFormatter(facetFilters);
 
+    // Set model name as class property so can be easily accessed in callbacks.
     this.setProperties({
       modelName: modelName,
-      queryParams: {
-        page: page,
-      },
-      queryParamsWithFilters: {
-        page: page,
-        facetFilters: facetFiltersFormatted,
-      },
     });
 
-    var indexName = this.algoliaBuildIndexName(modelName, visibility);
+    var queryParams = { page: page };
+    var queryParamsWithFilters = {
+      page: page,
+      facetFilters: facetFiltersFormatted,
+    };
+
+    var indexName = this._algoliaBuildIndexName(modelName, visibility);
     var facetsParams = Ember.$.extend(this.get('queryParams'), this.get('defaultParams'));
     var resultsParams = Ember.$.extend(this.get('queryParamsWithFilters'), this.get('defaultParams'));
 
