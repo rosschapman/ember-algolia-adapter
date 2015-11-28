@@ -113,7 +113,7 @@ export default DS.RESTAdapter.extend({
   // Transforms a flat array and returns properly nested arrays that configure OR and AND filtering.
   _facetFormatter: function(facetFiltersArr) {
     if (!facetFiltersArr) { return; }
-    var masterArr = [];
+    var formattedFacets = [];
 
     // ```
     // ['status:Accepted', 'user_name:Dennis Rodman'] >>
@@ -137,9 +137,9 @@ export default DS.RESTAdapter.extend({
       facetArr = facetFiltersArr.filter(function(filter) {
         return filter.indexOf(facetName) !== -1;
       });
-      masterArr.push(facetArr);
+      formattedFacets.push(facetArr);
     });
 
-    return masterArr;
+    return formattedFacets;
   },
 });
