@@ -12,9 +12,6 @@ export default DS.RESTAdapter.extend({
     facets: '*',
     attributesToRetrieve: '*',
   },
-  queryParams: null,
-  queryParamsWithFilters: null,
-
   query: function(modelName, options) {
     var self = this;
     var {
@@ -38,8 +35,8 @@ export default DS.RESTAdapter.extend({
     };
 
     var indexName = this._algoliaBuildIndexName(modelName, visibility);
-    var facetsParams = Ember.$.extend(this.get('queryParams'), this.get('defaultParams'));
-    var resultsParams = Ember.$.extend(this.get('queryParamsWithFilters'), this.get('defaultParams'));
+    var facetsParams = Ember.$.extend(queryParams, this.get('defaultParams'));
+    var resultsParams = Ember.$.extend(queryParamsWithFilters, this.get('defaultParams'));
 
     query = query || '';
 
