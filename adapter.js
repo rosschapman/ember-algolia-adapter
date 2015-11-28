@@ -18,7 +18,6 @@ export default DS.RESTAdapter.extend({
       query,
       page,
       facetFilters,
-      visibility,
     } = options;
 
     var facetFiltersFormatted = this._facetFormatter(facetFilters);
@@ -34,7 +33,7 @@ export default DS.RESTAdapter.extend({
       facetFilters: facetFiltersFormatted,
     };
 
-    var indexName = this._algoliaBuildIndexName(modelName, visibility);
+    var indexName = this._algoliaBuildIndexName(modelName);
     var facetsParams = Ember.$.extend(queryParams, this.get('defaultParams'));
     var resultsParams = Ember.$.extend(queryParamsWithFilters, this.get('defaultParams'));
 
@@ -54,15 +53,8 @@ export default DS.RESTAdapter.extend({
     }.bind(self));
   },
 
-  _algoliaBuildIndexName: function(model, visibility) {
-    if (!!modelAliases[model]) {
-      model = modelAliases[model];
-    }
-    if (visibility) {
-      return model.camelize().capitalize() + '_' + visibility.capitalize() + '_' + config.environment;
-    } else {
-      return model.camelize().capitalize() + '_' + config.environment;
-    }
+  _algoliaBuildIndexName: function(model) {
+    return model.camelize().capitalize() + '_' + config.environment;
   },
 
   _handleResultsResponse: function(resultsPayload) {
