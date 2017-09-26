@@ -1,5 +1,7 @@
 :hamster: + :mag:
 
+* **Update 9/26/17**: This code is hella old and was a bit early days in my Ember usage. But proud it helped us get some things done back in those days. :)
+
 The Ember.js framework and [Algolia](https://www.algolia.com) make a pretty slick team for powering a user-friendly search experience.
 
 This small library demonstrates one way to splice Ember and Algolia based on my work on Science Exchange's [online marketplace](https://www.scienceexchange.com).  It's akin to Algolia's own example marketplace project for [WordPress plugins](https://wordpress.algolia.com/).  The code assumes a split interface between results and filters, which might look a little something like:
